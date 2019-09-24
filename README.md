@@ -14,4 +14,4 @@ However, malware authors will often attempt to make analysis of their software m
 
 libelfmaster comes with the ability to reconstruct section headers, among other innovative functionality. Read more at the libelfmaster Github page.
 
-![Alt text](https://github.com/Bowlslaw/readelfmaster/blob/master/readelfmastersections.pngraw=true "readelf cannot reconstruct section headers from a stripped binary")
+![Alt text](https://github.com/Bowlslaw/readelfmaster/blob/master/readelfmastersections.png?raw=true "readelf cannot reconstruct section headers from a stripped binary")
