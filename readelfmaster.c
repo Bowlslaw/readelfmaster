@@ -30,50 +30,41 @@ int main(int argc, char **argv)
 	unsigned int count = 0;
 	int c;
 
+	bool sectflag = false;
+	bool segflag = false;
+
 	if(argc < 2) {
 		usage(progname);
 		exit(EXIT_SUCCESS);
 	}
 
-	/* Open the ELF object in forensics mode */
-	if(elf_open_object(argv[1], &obj, ELF_LOAD_F_FORENSICS, &error) == false) {
-		printf("%s\n", elf_error_msg(&error));
-		return -1;
-	}
-
-	/* -S will print the sections headers. If they don't exist, libelfmaster
-	 * will reconstruct and print them. */
 	while((c = getopt(argc, argv, ":hlS")) != 1)
 		switch(c) {
 			case 'h':
 				usage(progname);
 				exit(EXIT_SUCCESS);
 			case 'S':
-				if(obj.flags & ELF_SHDRS_F) {
-					printf("[+] Section Headers:\n");
-					print_section_headers();
-					print_elf_sections(obj, s_iter, section);
-				}
-				else {
-					printf("[+] Reconstructing Section Headers:\n");
-					print_section_headers();
-					print_elf_sections(obj, s_iter, section);
-				}
-
+				sectflag = true;
 				//printf("Executable base: %#lx\n", elf_executable_text_base(&obj));
-				
 				break;
 			case 'l':
-				/* program headers */
-				if(obj.flags & ELF_PHDRS_F) {
-					printf("\n[+] Program Headers:\n");
-					print_program_headers();
-					print_elf_phdrs(obj, p_iter, segment);
-				}
+				segflag = true;
 				break;
 			case '?':
 				fprintf(stderr, "Unknown options '-%c'.\n", optopt);
+				exit(EXIT_FAILURE);
 			default:
+				/* Open the ELF object in forensics mode */
+				if(elf_open_object(argv[optind], &obj, ELF_LOAD_F_FORENSICS,
+							&error) == false) {
+					printf("%s\n", elf_error_msg(&error));
+					return -1;
+				}
+				if(sectflag)
+					print_elf_sections(obj, s_iter, section);
+				if(segflag)
+					print_elf_phdrs(obj, p_iter, segment);
+
 				exit(EXIT_SUCCESS);
 		}
 }
@@ -107,6 +98,16 @@ void print_elf_sections(elfobj_t obj, elf_section_iterator_t s_iter,
 {
 	unsigned int count = 0;
 	elf_section_iterator_init(&obj, &s_iter);
+	
+	if(obj.flags & ELF_SHDRS_F) {
+		printf("[+] Section Headers:\n");
+		print_section_headers();
+	}
+	else {
+		printf("[+] Reconstructing Section Headers:\n");
+		print_section_headers();
+	}
+
 	while(elf_section_iterator_next(&s_iter, &section) == ELF_ITER_OK) {
 		struct elf_section tmp_section;
 		char section_link;
@@ -143,6 +144,12 @@ void print_elf_phdrs(elfobj_t obj, elf_segment_iterator_t p_iter,
 		struct elf_segment segment)
 {
 	elf_segment_iterator_init(&obj, &p_iter);
+	
+	if(obj.flags & ELF_PHDRS_F) {
+		printf("\n[+] Program Headers:\n");
+		print_program_headers();
+	}
+
 	while(elf_segment_iterator_next(&p_iter, &segment) == ELF_ITER_OK) {
 		printf("\n  %#016lx  %#016lx  %#016lx" \
 				"\n  %#016lx  %#016lx  %s\n",
