@@ -13,10 +13,13 @@
 void usage(const char *progname);
 void print_section_headers(void);
 void print_program_headers(void);
+void print_dynsym_headers(void);
 void print_elf_sections(elfobj_t obj, elf_section_iterator_t s_iter,
 		struct elf_section section);
 void print_elf_phdrs(elfobj_t obj, elf_segment_iterator_t p_iter,
 		struct elf_segment segment);
+void print_dynamic_symbols(elfobj_t obj, elf_dynsym_iterator_t ds_iter,
+		struct elf_symbol symbol);
 
 int main(int argc, char **argv)
 {
@@ -24,25 +27,30 @@ int main(int argc, char **argv)
 	elf_error_t error;
 	elf_section_iterator_t s_iter;
 	elf_segment_iterator_t p_iter;
+	elf_dynsym_iterator_t ds_iter;
 	struct elf_section section;
 	struct elf_segment segment;
+	struct elf_symbol symbol;
 	const char *progname = argv[0];
-	unsigned int count = 0;
 	int c;
 
 	bool sectflag = false;
 	bool segflag = false;
+	bool dynsymflag = false;
 
 	if(argc < 2) {
 		usage(progname);
 		exit(EXIT_SUCCESS);
 	}
 
-	while((c = getopt(argc, argv, ":hlS")) != 1)
+	while((c = getopt(argc, argv, ":hdlS")) != 1)
 		switch(c) {
 			case 'h':
 				usage(progname);
 				exit(EXIT_SUCCESS);
+			case 'd':
+				dynsymflag = true;
+				break;
 			case 'S':
 				sectflag = true;
 				//printf("Executable base: %#lx\n", elf_executable_text_base(&obj));
@@ -64,6 +72,8 @@ int main(int argc, char **argv)
 					print_elf_sections(obj, s_iter, section);
 				if(segflag)
 					print_elf_phdrs(obj, p_iter, segment);
+				if(dynsymflag)
+					print_dynamic_symbols(obj, ds_iter, symbol);
 
 				exit(EXIT_SUCCESS);
 		}
@@ -71,10 +81,11 @@ int main(int argc, char **argv)
 
 void usage(const char *progname)
 {
-	printf("Usage: %s <binary> [-hlS]\n"
+	printf("Usage: %s <binary> [-hdlS]\n"
 			"-h\tDisplay this help output.\n"
-			"-l\tDisplay Program Headers\n"
-			"-S\tDisplay Section Headers, reconstructing as necessary\n",
+			"-d\tDisplay Dynamic Symbols.\n"
+			"-l\tDisplay Program Headers.\n"
+			"-S\tDisplay Section Headers, reconstructing as necessary.\n",
 			progname);
 }
 
@@ -91,6 +102,12 @@ void print_program_headers(void)
 	printf("  %s%19s%17s\n  %s%17s%17s",
 			"VAddr", "FileSz", "MemSz",
 			"Offset", "Align", "Type");
+}
+
+void print_dynsym_headers(void)
+{
+	printf("    %s%8s%14s %s %7s %5s %8s %3s\n",
+			"Num:", "Value", "Size", "Type", "Bind", "Vis", "Ndx", "Name");
 }
 
 void print_elf_sections(elfobj_t obj, elf_section_iterator_t s_iter,
@@ -162,3 +179,25 @@ void print_elf_phdrs(elfobj_t obj, elf_segment_iterator_t p_iter,
 	}
 	printf("\n");
 }
+
+void print_dynamic_symbols(elfobj_t obj, elf_dynsym_iterator_t ds_iter,
+		struct elf_symbol symbol)
+{
+	unsigned int count = 0;
+	elf_dynsym_iterator_init(&obj, &ds_iter);
+	print_dynsym_headers();
+
+	while(elf_dynsym_iterator_next(&ds_iter, &symbol) == ELF_ITER_OK) {
+		printf("    %d: %#016lx %6d %d %7d %6d %8d   %s\n",
+				count++,
+				symbol.value,
+				symbol.size,
+				symbol.type,
+				symbol.bind,
+				symbol.visibility,
+				symbol.shndx,
+				symbol.name);
+	}
+	printf("\n");
+}
+
